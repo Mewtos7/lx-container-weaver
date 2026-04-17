@@ -26,14 +26,17 @@ var (
 // UUID helper
 // ──────────────────────────────────────────────────────────────────────────────
 
-// newUUID generates a random UUID v4 string.
-func newUUID() string {
+// newUUID generates a random UUID v4 string. It returns an error if the
+// system random number generator is unavailable.
+func newUUID() (string, error) {
 	b := make([]byte, 16)
-	_, _ = rand.Read(b)
+	if _, err := rand.Read(b); err != nil {
+		return "", fmt.Errorf("memory: generate UUID: %w", err)
+	}
 	b[6] = (b[6] & 0x0f) | 0x40 // version 4
 	b[8] = (b[8] & 0x3f) | 0x80 // variant
 	return fmt.Sprintf("%08x-%04x-%04x-%04x-%012x",
-		b[0:4], b[4:6], b[6:8], b[8:10], b[10:])
+		b[0:4], b[4:6], b[6:8], b[8:10], b[10:]), nil
 }
 
 // ──────────────────────────────────────────────────────────────────────────────
@@ -92,7 +95,11 @@ func (s *ClusterStore) CreateCluster(_ context.Context, c *model.Cluster) (*mode
 
 	now := time.Now().UTC()
 	stored := *c
-	stored.ID = newUUID()
+	id, err := newUUID()
+	if err != nil {
+		return nil, err
+	}
+	stored.ID = id
 	stored.CreatedAt = now
 	stored.UpdatedAt = now
 	s.rows[stored.ID] = &stored
@@ -200,7 +207,11 @@ func (s *NodeStore) CreateNode(_ context.Context, n *model.Node) (*model.Node, e
 
 	now := time.Now().UTC()
 	stored := *n
-	stored.ID = newUUID()
+	id, err := newUUID()
+	if err != nil {
+		return nil, err
+	}
+	stored.ID = id
 	stored.CreatedAt = now
 	stored.UpdatedAt = now
 	s.rows[stored.ID] = &stored
@@ -309,7 +320,11 @@ func (s *InstanceStore) CreateInstance(_ context.Context, i *model.Instance) (*m
 
 	now := time.Now().UTC()
 	stored := *i
-	stored.ID = newUUID()
+	id, err := newUUID()
+	if err != nil {
+		return nil, err
+	}
+	stored.ID = id
 	stored.CreatedAt = now
 	stored.UpdatedAt = now
 	s.rows[stored.ID] = &stored
