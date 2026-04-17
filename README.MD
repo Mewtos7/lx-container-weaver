@@ -106,6 +106,10 @@ db/migrations/<version>_<description>.down.sql — rollback
 
 Where `<version>` is a zero-padded four-digit integer (e.g. `0001`, `0002`). Files are applied in ascending lexicographic order. Each migration runs inside a single database transaction; a failure causes the transaction to roll back and the error is surfaced immediately.
 
+## AI Assistance
+
+This project uses AI tooling to assist with writing content. All contributions are reviewed and approved by a human maintainer before they are merged into the repository.
+
 ## Status
 
 This project is under active development and open to improvements, fixes, and feature contributions.
