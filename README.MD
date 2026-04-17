@@ -108,9 +108,7 @@ Where `<version>` is a zero-padded four-digit integer (e.g. `0001`, `0002`). Fil
 
 ## AI Assistance
 
-This project uses AI tooling to assist with writing source code, issue bodies, and documentation.
-
-All AI-generated content is reviewed and approved by a human maintainer before it is merged into the repository. AI tooling acts as an assistant; a person remains responsible for every decision and every line that ships.
+This project uses AI tooling to assist with writing content. All contributions are reviewed and approved by a human maintainer before they are merged into the repository.
 
 ## Status
 
