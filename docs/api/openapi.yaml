@@ -879,6 +879,26 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ClusterList"
+              example:
+                items:
+                  - id: 3fa85f64-5717-4562-b3fc-2c963f66afa6
+                    name: prod-eu-central
+                    lxd_endpoint: https://lxd.prod-eu-central.example.internal:8443
+                    hyperscaler_provider: hetzner
+                    hyperscaler_config:
+                      token_ref: "env:HETZNER_API_TOKEN"
+                      region: eu-central
+                      server_type: cx31
+                    scaling_config:
+                      high_watermark: 0.8
+                      low_watermark: 0.2
+                      sustained_seconds: 300
+                      cooldown_seconds: 600
+                      loop_interval_seconds: 60
+                    status: active
+                    created_at: "2026-04-17T10:00:00Z"
+                    updated_at: "2026-04-17T10:00:00Z"
+                total: 1
         "401":
           $ref: "#/components/responses/Unauthorized"
         "500":
@@ -895,6 +915,20 @@ paths:
           application/json:
             schema:
               $ref: "#/components/schemas/ClusterCreate"
+            example:
+              name: prod-eu-central
+              lxd_endpoint: https://lxd.prod-eu-central.example.internal:8443
+              hyperscaler_provider: hetzner
+              hyperscaler_config:
+                token_ref: "env:HETZNER_API_TOKEN"
+                region: eu-central
+                server_type: cx31
+              scaling_config:
+                high_watermark: 0.8
+                low_watermark: 0.2
+                sustained_seconds: 300
+                cooldown_seconds: 600
+                loop_interval_seconds: 60
       responses:
         "201":
           description: Cluster registered successfully.
@@ -902,6 +936,24 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/Cluster"
+              example:
+                id: 3fa85f64-5717-4562-b3fc-2c963f66afa6
+                name: prod-eu-central
+                lxd_endpoint: https://lxd.prod-eu-central.example.internal:8443
+                hyperscaler_provider: hetzner
+                hyperscaler_config:
+                  token_ref: "env:HETZNER_API_TOKEN"
+                  region: eu-central
+                  server_type: cx31
+                scaling_config:
+                  high_watermark: 0.8
+                  low_watermark: 0.2
+                  sustained_seconds: 300
+                  cooldown_seconds: 600
+                  loop_interval_seconds: 60
+                status: active
+                created_at: "2026-04-17T10:00:00Z"
+                updated_at: "2026-04-17T10:00:00Z"
         "401":
           $ref: "#/components/responses/Unauthorized"
         "409":
@@ -1037,6 +1089,13 @@ paths:
           application/json:
             schema:
               $ref: "#/components/schemas/NodeCreate"
+            example:
+              name: node-01
+              lxd_member_name: lxd-member-01
+              hyperscaler_server_id: "12345678"
+              cpu_cores: 4
+              memory_bytes: 8589934592
+              disk_bytes: 107374182400
       responses:
         "201":
           description: Node registered successfully.
@@ -1044,6 +1103,18 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/Node"
+              example:
+                id: a1b2c3d4-e5f6-7890-abcd-ef1234567890
+                cluster_id: 3fa85f64-5717-4562-b3fc-2c963f66afa6
+                name: node-01
+                lxd_member_name: lxd-member-01
+                hyperscaler_server_id: "12345678"
+                cpu_cores: 4
+                memory_bytes: 8589934592
+                disk_bytes: 107374182400
+                status: online
+                created_at: "2026-04-17T10:05:00Z"
+                updated_at: "2026-04-17T10:05:00Z"
         "401":
           $ref: "#/components/responses/Unauthorized"
         "404":
@@ -1194,6 +1265,15 @@ paths:
           application/json:
             schema:
               $ref: "#/components/schemas/InstanceCreate"
+            example:
+              name: web-01
+              instance_type: container
+              cpu_limit: 2
+              memory_limit: 1073741824
+              disk_limit: 10737418240
+              config:
+                boot.autostart: "true"
+                environment.APP_ENV: production
       responses:
         "201":
           description: Instance created successfully.
@@ -1201,6 +1281,21 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/Instance"
+              example:
+                id: b2c3d4e5-f6a7-8901-bcde-f12345678901
+                cluster_id: 3fa85f64-5717-4562-b3fc-2c963f66afa6
+                node_id: a1b2c3d4-e5f6-7890-abcd-ef1234567890
+                name: web-01
+                instance_type: container
+                cpu_limit: 2
+                memory_limit: 1073741824
+                disk_limit: 10737418240
+                config:
+                  boot.autostart: "true"
+                  environment.APP_ENV: production
+                status: running
+                created_at: "2026-04-17T10:10:00Z"
+                updated_at: "2026-04-17T10:10:00Z"
         "401":
           $ref: "#/components/responses/Unauthorized"
         "404":
@@ -1395,6 +1490,8 @@ paths:
           application/json:
             schema:
               $ref: "#/components/schemas/MigrateInstanceRequest"
+            example:
+              target_node_id: c3d4e5f6-a7b8-9012-cdef-012345678901
       responses:
         "202":
           description: Migration accepted and in progress.
@@ -1402,6 +1499,18 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/Migration"
+              example:
+                id: d4e5f6a7-b8c9-0123-defa-123456789012
+                instance_id: b2c3d4e5-f6a7-8901-bcde-f12345678901
+                scaling_action_id: null
+                source_node_id: a1b2c3d4-e5f6-7890-abcd-ef1234567890
+                target_node_id: c3d4e5f6-a7b8-9012-cdef-012345678901
+                status: in_progress
+                started_at: "2026-04-17T11:00:00Z"
+                completed_at: null
+                error_message: null
+                created_at: "2026-04-17T11:00:00Z"
+                updated_at: "2026-04-17T11:00:00Z"
         "401":
           $ref: "#/components/responses/Unauthorized"
         "404":
@@ -1474,6 +1583,9 @@ paths:
           application/json:
             schema:
               $ref: "#/components/schemas/ScalingActionTriggerRequest"
+            example:
+              action_type: scale_out
+              trigger_reason: "Manual scale-out requested by operator"
       responses:
         "202":
           description: Scaling action accepted and queued.
@@ -1481,6 +1593,18 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ScalingAction"
+              example:
+                id: e5f6a7b8-c9d0-1234-efab-234567890123
+                cluster_id: 3fa85f64-5717-4562-b3fc-2c963f66afa6
+                action_type: scale_out
+                trigger_reason: "Manual scale-out requested by operator"
+                status: pending
+                node_id: null
+                started_at: null
+                completed_at: null
+                error_message: null
+                created_at: "2026-04-17T11:30:00Z"
+                updated_at: "2026-04-17T11:30:00Z"
         "401":
           $ref: "#/components/responses/Unauthorized"
         "404":
@@ -1647,6 +1771,37 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/AuditEventList"
+              example:
+                items:
+                  - id: 3
+                    cluster_id: 3fa85f64-5717-4562-b3fc-2c963f66afa6
+                    resource_type: instance
+                    resource_id: b2c3d4e5-f6a7-8901-bcde-f12345678901
+                    action: create
+                    actor: cli-key-prod
+                    details:
+                      name: web-01
+                      instance_type: container
+                    occurred_at: "2026-04-17T10:10:00Z"
+                  - id: 2
+                    cluster_id: 3fa85f64-5717-4562-b3fc-2c963f66afa6
+                    resource_type: node
+                    resource_id: a1b2c3d4-e5f6-7890-abcd-ef1234567890
+                    action: create
+                    actor: cli-key-prod
+                    details:
+                      name: node-01
+                    occurred_at: "2026-04-17T10:05:00Z"
+                  - id: 1
+                    cluster_id: 3fa85f64-5717-4562-b3fc-2c963f66afa6
+                    resource_type: cluster
+                    resource_id: 3fa85f64-5717-4562-b3fc-2c963f66afa6
+                    action: create
+                    actor: cli-key-prod
+                    details:
+                      name: prod-eu-central
+                    occurred_at: "2026-04-17T10:00:00Z"
+                total: 3
         "401":
           $ref: "#/components/responses/Unauthorized"
         "404":
