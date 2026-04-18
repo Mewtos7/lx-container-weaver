@@ -28,7 +28,7 @@ If a required tool is missing, follow the installation link in the table above a
 cp .env.example .env
 ```
 
-Open `.env` in an editor. The file is pre-populated with safe defaults for local use. The only value you must fill in is `API_KEYS` (see next step).
+Open `.env` in an editor. The file is pre-populated with safe defaults for local use. You must fill in `API_KEYS` (see next step) and `DATABASE_URL` (printed by `make dev-up` in step 3).
 
 ### 2. Generate an API key
 
@@ -73,12 +73,13 @@ This single command starts the PostgreSQL container and applies all pending data
 ```
 ✓ Local environment ready.
   1. Copy .env.example to .env and set API_KEYS (run 'make gen-api-key' first).
-  2. Add the database connection value printed by this command to your .env file.
+  2. Set DATABASE_URL in .env:
+       DATABASE_URL=postgres://weaver:secret@localhost:5432/weaver?sslmode=disable
   3. Run: source .env && go run ./cmd/manager
   Run 'make dev-reset' to tear down all local state.
 ```
 
-Use the database connection value printed by `make dev-up` when updating `.env` before starting the manager.
+Copy the `DATABASE_URL` value from the output into `.env`.
 
 ### 4. Start the manager
 

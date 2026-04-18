@@ -41,7 +41,8 @@ dev-up: db-up migrate-up ## Start the full local dev environment (db + migration
 	@echo ""
 	@echo "✓ Local environment ready."
 	@echo "  1. Copy .env.example to .env and set API_KEYS (run 'make gen-api-key' first)."
-	@echo "  2. Add the database connection value printed by this command to your .env file."
+	@echo "  2. Set DATABASE_URL in .env:"
+	@echo "       DATABASE_URL=$(DATABASE_URL)"
 	@echo "  3. Run: source .env && go run ./cmd/manager"
 	@echo "  Run 'make dev-reset' to tear down all local state."
 
