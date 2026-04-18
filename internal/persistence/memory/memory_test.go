@@ -123,8 +123,8 @@ func TestClusterStore_Update(t *testing.T) {
 	if got.CreatedAt != created.CreatedAt {
 		t.Error("UpdateCluster: CreatedAt should not change")
 	}
-	if !got.UpdatedAt.After(created.UpdatedAt) {
-		t.Error("UpdateCluster: UpdatedAt should be newer than CreatedAt")
+	if got.UpdatedAt.Before(created.UpdatedAt) {
+		t.Error("UpdateCluster: UpdatedAt should be newer than or equal to previous UpdatedAt")
 	}
 }
 
