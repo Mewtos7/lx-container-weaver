@@ -1,6 +1,8 @@
 # golangci-lint configuration for LX Container Weaver.
 # Docs: https://golangci-lint.run/usage/configuration/
 
+version: "2"
+
 linters:
   default: none
   enable:
