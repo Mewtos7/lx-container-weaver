@@ -45,22 +45,17 @@ The goal is simple:
 - License (Apache 2.0): [LICENSE](LICENSE)
 - Repository: [Mewtos7/lx-container-weaver](https://github.com/Mewtos7/lx-container-weaver)
 
+## Prerequisites
+
+- [Docker](https://docs.docker.com/get-docker/) and [Docker Compose](https://docs.docker.com/compose/) for the local PostgreSQL instance.
+- Go 1.25+ to build and run the manager binary.
+- A bcrypt-hashed API key in the `API_KEYS` environment variable (see [Generate an API key](#1-generate-an-api-key) below).
+
 ## Database Migrations
 
 Schema changes are managed with versioned SQL migration files stored under `db/migrations/`. A lightweight Go migration runner (in `internal/migration/`) applies them in order and tracks the applied state in a `schema_migrations` table.
 
-### Prerequisites
-
-- [Docker](https://docs.docker.com/get-docker/) and [Docker Compose](https://docs.docker.com/compose/) for the local PostgreSQL instance.
-- Go 1.25+ to build the `migrate` binary.
-
 ## Running the Manager Service
-
-### Prerequisites
-
-- [Docker](https://docs.docker.com/get-docker/) and [Docker Compose](https://docs.docker.com/compose/) for the local PostgreSQL instance.
-- Go 1.25+ to build and run the manager binary.
-- A bcrypt-hashed API key in the `API_KEYS` environment variable (see below).
 
 ### 1. Generate an API key
 
