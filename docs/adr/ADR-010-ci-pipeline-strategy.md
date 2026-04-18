@@ -29,7 +29,7 @@ All pipeline stages are also available as local `make` targets so contributors c
 - **Unified commands:** Defining validation as Makefile targets (`validate`, `vet`, `fmt-check`, `lint`) means the CI workflow and contributors' local workflow use identical commands, eliminating "works on my machine" gaps.
 - **GitHub Actions:** Already available for the repository at no additional cost, with first-class Go support via `actions/setup-go` and the golangci-lint community action.
 - **golangci-lint:** Aggregates multiple linters in a single tool invocation, keeping CI fast while covering a broad range of correctness and style issues.
-- **Pinned action versions:** All Actions are referenced at a specific major version (`@v4`, `@v5`, `@v6`) to ensure reproducible runs.
+- **Pinned action versions:** All Actions are referenced at a specific major version (`@v4`, `@v5`, `@v9`) to ensure reproducible runs.
 
 ## Alternatives Considered
 
@@ -43,7 +43,7 @@ All pipeline stages are also available as local `make` targets so contributors c
 - Every pull request must pass all five pipeline stages before it can be reviewed and merged.
 - Contributors can run `make validate` locally to reproduce CI results before pushing.
 - golangci-lint rules are managed in `.golangci.yml`; changes to enabled linters require updating that file.
-- The pipeline version pins (`golangci-lint v1.64.8`, Action major versions) must be kept up to date as part of routine maintenance.
+- The pipeline version pins (`golangci-lint v2.1.6`, Action major versions) must be kept up to date as part of routine maintenance.
 
 ## Related ADRs
 

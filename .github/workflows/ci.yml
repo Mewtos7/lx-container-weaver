@@ -33,6 +33,6 @@ jobs:
         run: make fmt-check
 
       - name: Lint
-        uses: golangci/golangci-lint-action@v6
+        uses: golangci/golangci-lint-action@v9
         with:
-          version: v1.64.8
+          version: v2.1.6
