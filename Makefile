@@ -34,6 +34,20 @@ test: ## Run all tests
 gen-api-key: ## Generate a new API key and print its bcrypt hash for use in API_KEYS
 	go run ./tools/gen-api-key
 
+# ─── Local development environment ───────────────────────────────────────────
+
+.PHONY: dev-up
+dev-up: db-up migrate-up ## Start the full local dev environment (db + migrations)
+	@echo ""
+	@echo "✓ Local environment ready."
+	@echo "  1. Copy .env.example to .env and fill in API_KEYS (run 'make gen-api-key' first)."
+	@echo "  2. Run: source .env && go run ./cmd/manager"
+	@echo "  Run 'make dev-reset' to tear down all local state."
+
+.PHONY: dev-reset
+dev-reset: db-down ## Stop and remove all local state (database volume is destroyed)
+	@echo "✓ Local environment reset. Run 'make dev-up' to start fresh."
+
 # ─── Database / migrations ────────────────────────────────────────────────────
 
 .PHONY: db-up

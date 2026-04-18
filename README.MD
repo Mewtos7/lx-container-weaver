@@ -45,136 +45,20 @@ The goal is simple:
 - License (Apache 2.0): [LICENSE](LICENSE)
 - Repository: [Mewtos7/lx-container-weaver](https://github.com/Mewtos7/lx-container-weaver)
 
-## Prerequisites
+## Local Development
 
-- [Docker](https://docs.docker.com/get-docker/) and [Docker Compose](https://docs.docker.com/compose/) for the local PostgreSQL instance.
-- Go 1.25+ to build and run the manager binary.
+Full setup instructions — prerequisites, quick-start, environment variables, database migrations, reset workflow, and troubleshooting — are in [docs/local-development.md](docs/local-development.md).
 
-
-## Database Migrations
-
-Schema changes are managed with versioned SQL migration files stored under `db/migrations/`. A lightweight Go migration runner (in `internal/migration/`) applies them in order and tracks the applied state in a `schema_migrations` table.
-
-## Running the Manager Service
-
-### Environment variables
-
-Neccessary envrionment variables are documented via [.env.example](.env.example)
-
-### 1. Generate an API key
-
-The manager requires at least one API key to start. Generate a key and its bcrypt hash with the included tool:
+**Quick start (after cloning):**
 
 ```sh
-make gen-api-key
+cp .env.example .env          # copy config template
+make gen-api-key              # generate an API key; paste the bcrypt hash into .env
+make dev-up                   # start PostgreSQL and apply migrations
+source .env && go run ./cmd/manager
 ```
 
-Example output:
-
-```
-Raw key  : Tz3xQ...8Qw
-Bcrypt   : $2a$12$...
-
-Add to API_KEYS in .env or export directly:
-  export API_KEYS='$2a$12$...'
-```
-
-Copy the `export` line into your shell (or `.env` file). Give the **raw key** to the API client — it is shown once and cannot be recovered from the hash.
-
-Each client should have a unique key. Generate additional keys with `make gen-api-key` and append their hashes to `API_KEYS` as a comma-separated list:
-
-```sh
-export API_KEYS='$2a$12$firsthash,$2a$12$secondhash'
-```
-
-### 2. Start PostgreSQL and apply migrations
-
-```sh
-make db-up
-make migrate-up
-```
-
-### 3. Start the manager
-
-```sh
-export DATABASE_URL='postgres://weaver:secret@localhost:5432/weaver?sslmode=disable'
-export API_KEYS='$2a$12$...'   # paste the bcrypt hash from step 1
-go run ./cmd/manager
-```
-
-Or build first:
-
-```sh
-make build-manager
-DATABASE_URL='...' API_KEYS='...' ./manager
-```
-
-### 4. Verify with a health check
-
-```sh
-curl http://localhost:8080/v1/health
-# → {"status":"ok"}
-```
-
-Protected endpoints require the `Authorization` header:
-
-```sh
-curl -H "Authorization: Bearer <raw-key>" http://localhost:8080/v1/...
-```
-
-Requests with a missing, malformed, or invalid key receive a `401 Unauthorized` response.
-
-## Apply migrations on a fresh database
-
-```sh
-# 1. Start a local PostgreSQL container or use an existing instance
-make db-up
-
-# 2. Apply all pending migrations
-make migrate-up
-```
-
-The first run creates the full schema (clusters, nodes, instances, placements, scaling actions, migrations, and audit events tables) as defined in `db/migrations/0001_initial_schema.up.sql`.
-
-### Check migration status
-
-```sh
-make migrate-status
-```
-
-This prints every applied migration version and the timestamp at which it was applied.
-
-### Roll back the latest migration
-
-```sh
-make migrate-down
-```
-
-Only the most recently applied migration is rolled back. Run the command multiple times to step further back.
-
-### Tear down the local database
-
-```sh
-# Stops the container and removes the volume (all data is lost)
-make db-down
-```
-
-### Custom database URL
-
-All migration targets read the `DATABASE_URL` environment variable. You can override the default local value:
-
-```sh
-DATABASE_URL=postgres://user:pass@myhost:5432/mydb?sslmode=require make migrate-up
-```
-
-### Migration file naming convention
-
-```
-db/migrations/<version>_<description>.up.sql   — forward migration
-db/migrations/<version>_<description>.down.sql — rollback
-```
-
-Where `<version>` is a zero-padded four-digit integer (e.g. `0001`, `0002`). Files are applied in ascending lexicographic order. Each migration runs inside a single database transaction; a failure causes the transaction to roll back and the error is surfaced immediately.
+Run `make help` to list all available targets.
 
 ## AI Assistance
 
