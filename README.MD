@@ -150,6 +150,20 @@ To target a different database:
 DATABASE_URL=postgres://user:pass@myhost:5432/mydb?sslmode=require make migrate-up
 ```
 
+Migration files live in `db/migrations/` and follow this naming convention:
+
+```text
+db/migrations/<version>_<description>.up.sql
+db/migrations/<version>_<description>.down.sql
+```
+
+Where `<version>` is a zero-padded four-digit integer (for example, `0001`, `0002`).
+
+- `.up.sql` applies the schema change.
+- `.down.sql` rolls back the same change.
+
+Migrations are executed in ascending version order, and each migration runs inside a single database transaction.
+
 ## Troubleshooting
 
 #### `docker: command not found`
