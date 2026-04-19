@@ -5,6 +5,40 @@ package model
 
 import "time"
 
+// Node status constants define the lifecycle states of a node as stored in the
+// database. The bootstrap workflow drives transitions from NodeStatusProvisioning
+// to either NodeStatusOnline (success) or NodeStatusError (failure).
+const (
+	// NodeStatusProvisioning means the cloud server has been created but the
+	// LXD bootstrap process has not yet completed. A node in this state must
+	// not be used for workload scheduling.
+	NodeStatusProvisioning = "provisioning"
+
+	// NodeStatusOnline means the node has been successfully bootstrapped and
+	// is a healthy cluster member available for workload scheduling.
+	NodeStatusOnline = "online"
+
+	// NodeStatusOffline means the node is not currently reachable by the
+	// cluster. The node may recover without intervention (transient network
+	// partition) or may require operator action.
+	NodeStatusOffline = "offline"
+
+	// NodeStatusDraining means workloads are being live-migrated off the node
+	// in preparation for deprovisioning. No new instances are scheduled here.
+	NodeStatusDraining = "draining"
+
+	// NodeStatusDeprovisioning means the node is being removed from the LXD
+	// cluster and its cloud server is being deprovisioned via the hyperscaler
+	// provider.
+	NodeStatusDeprovisioning = "deprovisioning"
+
+	// NodeStatusError means the node encountered an unrecoverable error during
+	// bootstrap or another lifecycle operation. A node in this state must never
+	// be treated as available capacity; it requires operator investigation or
+	// an automated retry by the reconciliation loop.
+	NodeStatusError = "error"
+)
+
 // Cluster represents a single LXD cluster managed by this service.
 type Cluster struct {
 	ID                  string         `json:"id"`
