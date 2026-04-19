@@ -259,7 +259,7 @@ func (c *lxdClient) GetClusterMember(ctx context.Context, name string) (*NodeInf
 		return nil, fmt.Errorf("lxd: get cluster member: name must not be empty")
 	}
 	var member apiMember
-	if err := c.getJSON(ctx, "/1.0/cluster/members/"+name, &member); err != nil {
+	if err := c.getJSON(ctx, "/1.0/cluster/members/"+url.PathEscape(name), &member); err != nil {
 		return nil, fmt.Errorf("lxd: get cluster member %q: %w", name, err)
 	}
 	info := memberToNodeInfo(member)
@@ -298,7 +298,7 @@ func (c *lxdClient) GetInstance(ctx context.Context, name string) (*InstanceInfo
 		return nil, fmt.Errorf("lxd: get instance: name must not be empty")
 	}
 	var inst apiInstance
-	if err := c.getJSON(ctx, "/1.0/instances/"+name, &inst); err != nil {
+	if err := c.getJSON(ctx, "/1.0/instances/"+url.PathEscape(name), &inst); err != nil {
 		return nil, fmt.Errorf("lxd: get instance %q: %w", name, err)
 	}
 	info := instanceToInfo(inst)
