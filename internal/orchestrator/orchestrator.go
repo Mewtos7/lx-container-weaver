@@ -6,6 +6,7 @@ package orchestrator
 
 import (
 	"context"
+	"errors"
 	"log/slog"
 	"time"
 
@@ -13,6 +14,7 @@ import (
 	"github.com/Mewtos7/lx-container-weaver/internal/persistence"
 	"github.com/Mewtos7/lx-container-weaver/internal/persistence/model"
 	"github.com/Mewtos7/lx-container-weaver/internal/provider"
+	"github.com/Mewtos7/lx-container-weaver/internal/scheduler"
 )
 
 // NodeBootstrapRunner is the interface that the Orchestrator uses to execute
@@ -51,8 +53,11 @@ type Orchestrator struct {
 	provider       provider.HyperscalerProvider
 	bootstrap      NodeBootstrapRunner
 	clusterRepo    persistence.ClusterRepository
+	nodeRepo       persistence.NodeRepository
+	instanceRepo   persistence.InstanceRepository
 	nodeSyncer     NodeInventorySyncer
 	instanceSyncer InstanceInventorySyncer
+	scheduler      scheduler.Scheduler
 }
 
 // Option is a functional option for configuring an Orchestrator at
@@ -104,6 +109,34 @@ func WithNodeSyncer(s NodeInventorySyncer) Option {
 // so that the instance inventory reflects the current LXD instance state.
 func WithInstanceSyncer(s InstanceInventorySyncer) Option {
 	return func(o *Orchestrator) { o.instanceSyncer = s }
+}
+
+// WithNodeRepository wires a [persistence.NodeRepository] into the
+// Orchestrator. The repository is used by the scheduling step to read the
+// current node state for placement decisions.
+//
+// If no repository is configured, the scheduling step is skipped.
+func WithNodeRepository(r persistence.NodeRepository) Option {
+	return func(o *Orchestrator) { o.nodeRepo = r }
+}
+
+// WithInstanceRepository wires a [persistence.InstanceRepository] into the
+// Orchestrator. The repository is used by the scheduling step to read current
+// instance placements and to record new placement decisions.
+//
+// If no repository is configured, the scheduling step is skipped.
+func WithInstanceRepository(r persistence.InstanceRepository) Option {
+	return func(o *Orchestrator) { o.instanceRepo = r }
+}
+
+// WithScheduler wires a [scheduler.Scheduler] into the Orchestrator. On each
+// reconciliation pass the scheduler is called to assign unplaced instances to
+// nodes using the configured placement strategy (ADR-006).
+//
+// If no scheduler is configured, the scheduling step is skipped and instances
+// with no assigned node are left unplaced until a scheduler is available.
+func WithScheduler(s scheduler.Scheduler) Option {
+	return func(o *Orchestrator) { o.scheduler = s }
 }
 
 // New creates an Orchestrator that runs a reconciliation pass every interval.
@@ -211,6 +244,8 @@ func (o *Orchestrator) reconcileCluster(ctx context.Context, cluster *model.Clus
 		}
 	}
 
+	o.scheduleCluster(ctx, cluster, log)
+
 	if o.provider == nil {
 		log.Debug("reconcile cluster: no provider configured; skipping scaling steps")
 	} else {
@@ -223,4 +258,79 @@ func (o *Orchestrator) reconcileCluster(ctx context.Context, cluster *model.Clus
 	}
 
 	log.Debug("reconcile cluster: completed")
+}
+
+// scheduleCluster runs the placement step for one cluster. It lists all nodes
+// and instances, finds instances that have not yet been placed on a node
+// (NodeID == ""), and calls the scheduler to assign each one.
+//
+// A successful placement is recorded by updating the instance's NodeID in the
+// repository. When no eligible node is available the scheduler returns
+// [scheduler.ErrNoCapacity] and the event is logged so that an operator or a
+// future scale-out step can react.
+//
+// scheduleCluster is a no-op when the scheduler, node repository, or instance
+// repository is not configured.
+func (o *Orchestrator) scheduleCluster(ctx context.Context, cluster *model.Cluster, log *slog.Logger) {
+	if o.scheduler == nil || o.nodeRepo == nil || o.instanceRepo == nil {
+		return
+	}
+
+	nodes, err := o.nodeRepo.ListNodes(ctx, cluster.ID)
+	if err != nil {
+		log.Error("schedule cluster: failed to list nodes", "error", err)
+		return
+	}
+
+	instances, err := o.instanceRepo.ListInstances(ctx, cluster.ID)
+	if err != nil {
+		log.Error("schedule cluster: failed to list instances", "error", err)
+		return
+	}
+
+	for _, inst := range instances {
+		if inst.NodeID != "" {
+			// Instance already placed; nothing to do.
+			continue
+		}
+
+		req := scheduler.Request{
+			CPULimit:    inst.CPULimit,
+			MemoryLimit: inst.MemoryLimit,
+			DiskLimit:   inst.DiskLimit,
+		}
+
+		result, schedErr := o.scheduler.Schedule(nodes, instances, req)
+		if errors.Is(schedErr, scheduler.ErrNoCapacity) {
+			log.Warn("schedule cluster: no eligible node for instance; scale-out may be required",
+				"instance_id", inst.ID, "instance_name", inst.Name)
+			continue
+		}
+		if schedErr != nil {
+			log.Error("schedule cluster: scheduler error", "instance_id", inst.ID, "error", schedErr)
+			continue
+		}
+
+		// Record the placement decision.
+		placed := *inst
+		placed.NodeID = result.Node.ID
+		if _, updateErr := o.instanceRepo.UpdateInstance(ctx, &placed); updateErr != nil {
+			log.Error("schedule cluster: failed to record placement",
+				"instance_id", inst.ID, "node_id", result.Node.ID, "error", updateErr)
+			continue
+		}
+
+		log.Info("schedule cluster: placed instance",
+			"instance_id", inst.ID, "instance_name", inst.Name,
+			"node_id", result.Node.ID)
+
+		// Refresh the local instances slice so subsequent scheduling decisions
+		// in this pass account for the resources committed to this placement.
+		for i, in := range instances {
+			if in.ID == inst.ID {
+				instances[i] = &placed
+				break
+			}
+		}
+	}
 }
