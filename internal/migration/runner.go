@@ -129,7 +129,7 @@ func (r *Runner) Status(ctx context.Context) ([]AppliedMigration, error) {
 	if err != nil {
 		return nil, fmt.Errorf("migration: query status: %w", err)
 	}
-	defer rows.Close()
+	defer rows.Close() //nolint:errcheck
 
 	var result []AppliedMigration
 	for rows.Next() {
@@ -183,7 +183,7 @@ func (r *Runner) appliedVersions(ctx context.Context) (map[string]bool, error) {
 	if err != nil {
 		return nil, err
 	}
-	defer rows.Close()
+	defer rows.Close() //nolint:errcheck
 
 	applied := make(map[string]bool)
 	for rows.Next() {
@@ -263,7 +263,7 @@ func (r *Runner) readFile(path string) (string, error) {
 	if err != nil {
 		return "", fmt.Errorf("open %s: %w", path, err)
 	}
-	defer f.Close()
+	defer f.Close() //nolint:errcheck
 
 	b, err := io.ReadAll(f)
 	if err != nil {
