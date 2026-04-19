@@ -8,20 +8,41 @@ import (
 	"context"
 	"log/slog"
 	"time"
+
+	"github.com/Mewtos7/lx-container-weaver/internal/provider"
 )
 
 // Orchestrator runs the per-cluster reconciliation loop.
 type Orchestrator struct {
 	interval time.Duration
 	logger   *slog.Logger
+	provider provider.HyperscalerProvider
+}
+
+// Option is a functional option for configuring an Orchestrator at
+// construction time.
+type Option func(*Orchestrator)
+
+// WithProvider wires a [provider.HyperscalerProvider] into the Orchestrator
+// so that the reconciliation loop can invoke provisioning and deprovisioning
+// operations via the Pulumi Automation API (ADR-005).
+//
+// If no provider is configured, the reconciliation loop logs a warning and
+// skips provisioning steps until a provider is available.
+func WithProvider(p provider.HyperscalerProvider) Option {
+	return func(o *Orchestrator) { o.provider = p }
 }
 
 // New creates an Orchestrator that runs a reconciliation pass every interval.
-func New(interval time.Duration, logger *slog.Logger) *Orchestrator {
-	return &Orchestrator{
+func New(interval time.Duration, logger *slog.Logger, opts ...Option) *Orchestrator {
+	o := &Orchestrator{
 		interval: interval,
 		logger:   logger,
 	}
+	for _, opt := range opts {
+		opt(o)
+	}
+	return o
 }
 
 // Run starts the reconciliation loop. It blocks until ctx is cancelled, which
@@ -51,6 +72,11 @@ func (o *Orchestrator) Run(ctx context.Context) {
 // consolidation logic will be added in subsequent stories.
 func (o *Orchestrator) reconcile(_ context.Context) {
 	o.logger.Debug("reconcile pass started")
-	// TODO: query cluster list from repository, evaluate each cluster.
+	if o.provider == nil {
+		o.logger.Debug("reconcile pass completed", "provider", "none")
+		return
+	}
+	// TODO: query cluster list from repository, evaluate each cluster, and
+	// invoke o.provider.ProvisionServer / DeprovisionServer as needed.
 	o.logger.Debug("reconcile pass completed")
 }
