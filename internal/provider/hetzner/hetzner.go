@@ -119,7 +119,7 @@ func (p *Provider) DeprovisionServer(ctx context.Context, serverID string) error
 	if server == nil {
 		return fmt.Errorf("hetzner: deprovision server %q: %w", serverID, provider.ErrServerNotFound)
 	}
-	if _, err := p.client.Server.Delete(ctx, server); err != nil {
+	if _, _, err := p.client.Server.DeleteWithResult(ctx, server); err != nil {
 		return fmt.Errorf("hetzner: deprovision server %q: %w", serverID, err)
 	}
 	return nil
