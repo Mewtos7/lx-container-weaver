@@ -27,7 +27,6 @@ import (
 	"github.com/Mewtos7/lx-container-weaver/internal/orchestrator"
 	"github.com/Mewtos7/lx-container-weaver/internal/persistence/postgres"
 	"github.com/Mewtos7/lx-container-weaver/internal/provider/hetzner"
-	pulumiruntime "github.com/Mewtos7/lx-container-weaver/internal/pulumi"
 )
 
 func main() {
@@ -63,20 +62,6 @@ func main() {
 	defer stop()
 
 	// -------------------------------------------------------------------------
-	// Pulumi Automation runtime: initialise the in-process infrastructure
-	// provisioning engine (ADR-005). No state backend needs to be configured;
-	// the runtime uses a transient workspace per operation and cleans it up
-	// automatically. Idempotency is achieved through Pulumi's declarative
-	// model combined with the provider's idempotent API.
-	// -------------------------------------------------------------------------
-	pulumiRT, err := pulumiruntime.New("lx-container-weaver")
-	if err != nil {
-		logger.Error("failed to initialise Pulumi runtime", "error", err)
-		os.Exit(1)
-	}
-	logger.Info("Pulumi runtime initialised", "project", pulumiRT.ProjectName())
-
-	// -------------------------------------------------------------------------
 	// Database connectivity: open a PostgreSQL pool and fail fast if the
 	// configured DATABASE_URL is unreachable.
 	// -------------------------------------------------------------------------
@@ -91,7 +76,7 @@ func main() {
 	// Orchestration loop: run in a separate goroutine; terminates when ctx is
 	// cancelled.
 	// -------------------------------------------------------------------------
-	orchOpts := buildOrchOpts(cfg, pulumiRT, logger)
+	orchOpts := buildOrchOpts(cfg, logger)
 	orch := orchestrator.New(cfg.ReconcileInterval, logger, orchOpts...)
 	go orch.Run(ctx)
 
@@ -155,11 +140,11 @@ func newLogger(levelStr string) *slog.Logger {
 
 // buildOrchOpts constructs the orchestrator options based on the loaded
 // configuration. If a Hetzner Cloud API token is configured, a Hetzner
-// provider backed by the Pulumi runtime is wired into the orchestrator.
-func buildOrchOpts(cfg *config.Config, rt *pulumiruntime.Runtime, logger *slog.Logger) []orchestrator.Option {
+// provider is wired into the orchestrator.
+func buildOrchOpts(cfg *config.Config, logger *slog.Logger) []orchestrator.Option {
 	var opts []orchestrator.Option
 	if cfg.HetznerAPIToken != "" {
-		p, err := hetzner.New(cfg.HetznerAPIToken, hetzner.WithRuntime(rt))
+		p, err := hetzner.New(cfg.HetznerAPIToken)
 		if err != nil {
 			logger.Error("failed to initialise Hetzner Cloud provider", "error", err)
 			return opts
