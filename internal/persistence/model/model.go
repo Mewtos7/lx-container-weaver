@@ -67,6 +67,30 @@ type Node struct {
 	UpdatedAt           time.Time `json:"updated_at"`
 }
 
+// Instance status constants define the lifecycle states of an instance as
+// stored in the database. These map the LXD-reported lifecycle states to
+// a canonical set of values used throughout the control-plane.
+const (
+	// InstanceStatusRunning means the instance is active and consuming
+	// resources on its host node.
+	InstanceStatusRunning = "running"
+
+	// InstanceStatusStopped means the instance is not running but its disk
+	// image is still present on the host node.
+	InstanceStatusStopped = "stopped"
+
+	// InstanceStatusFrozen means the instance is paused (SIGSTOP / checkpoint)
+	// and can be thawed without a full restart.
+	InstanceStatusFrozen = "frozen"
+
+	// InstanceStatusUnknown is assigned when the LXD-reported status is not
+	// one of the known values, or when the instance is no longer returned by
+	// LXD (e.g. it was deleted or has disappeared from the cluster view).
+	// Instances in this state must not be scheduled against until they are
+	// confirmed present again by a subsequent sync run.
+	InstanceStatusUnknown = "unknown"
+)
+
 // Instance represents a container or VM managed within a cluster.
 type Instance struct {
 	ID           string         `json:"id"`
