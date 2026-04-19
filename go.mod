@@ -5,7 +5,6 @@ go 1.25.8
 require (
 	github.com/hetznercloud/hcloud-go/v2 v2.37.0
 	github.com/jackc/pgx/v5 v5.9.0
-	github.com/pulumi/pulumi-hcloud/sdk v1.32.1
 	github.com/pulumi/pulumi/sdk/v3 v3.231.0
 	golang.org/x/crypto v0.49.0
 )
@@ -96,6 +95,7 @@ require (
 	github.com/skeema/knownhosts v1.3.1 // indirect
 	github.com/spf13/cobra v1.10.2 // indirect
 	github.com/spf13/pflag v1.0.10 // indirect
+	github.com/stretchr/objx v0.5.0 // indirect
 	github.com/texttheater/golang-levenshtein v1.0.1 // indirect
 	github.com/uber/jaeger-client-go v2.30.0+incompatible // indirect
 	github.com/uber/jaeger-lib v2.4.1+incompatible // indirect
