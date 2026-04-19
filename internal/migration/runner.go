@@ -119,7 +119,7 @@ func (r *Runner) Down(ctx context.Context) (int, error) {
 
 // Status returns every version recorded in schema_migrations together with the
 // timestamp at which it was applied. Versions are returned in ascending order.
-func (r *Runner) Status(ctx context.Context) ([]AppliedMigration, error) {
+func (r *Runner) Status(ctx context.Context) (_ []AppliedMigration, retErr error) {
 	if err := r.ensureTable(ctx); err != nil {
 		return nil, fmt.Errorf("migration: ensure schema_migrations table: %w", err)
 	}
@@ -129,7 +129,11 @@ func (r *Runner) Status(ctx context.Context) ([]AppliedMigration, error) {
 	if err != nil {
 		return nil, fmt.Errorf("migration: query status: %w", err)
 	}
-	defer rows.Close() //nolint:errcheck
+	defer func() {
+		if closeErr := rows.Close(); closeErr != nil && retErr == nil {
+			retErr = fmt.Errorf("migration: close rows: %w", closeErr)
+		}
+	}()
 
 	var result []AppliedMigration
 	for rows.Next() {
@@ -178,12 +182,16 @@ func (r *Runner) listFiles(direction string) ([]string, error) {
 	return paths, nil
 }
 
-func (r *Runner) appliedVersions(ctx context.Context) (map[string]bool, error) {
+func (r *Runner) appliedVersions(ctx context.Context) (_ map[string]bool, retErr error) {
 	rows, err := r.db.QueryContext(ctx, `SELECT version FROM schema_migrations`)
 	if err != nil {
 		return nil, err
 	}
-	defer rows.Close() //nolint:errcheck
+	defer func() {
+		if closeErr := rows.Close(); closeErr != nil && retErr == nil {
+			retErr = fmt.Errorf("migration: close rows: %w", closeErr)
+		}
+	}()
 
 	applied := make(map[string]bool)
 	for rows.Next() {
@@ -258,12 +266,16 @@ func (r *Runner) rollbackFile(ctx context.Context, path, version string) error {
 	return tx.Commit()
 }
 
-func (r *Runner) readFile(path string) (string, error) {
+func (r *Runner) readFile(path string) (_ string, retErr error) {
 	f, err := r.fsys.Open(path)
 	if err != nil {
 		return "", fmt.Errorf("open %s: %w", path, err)
 	}
-	defer f.Close() //nolint:errcheck
+	defer func() {
+		if closeErr := f.Close(); closeErr != nil && retErr == nil {
+			retErr = fmt.Errorf("close %s: %w", path, closeErr)
+		}
+	}()
 
 	b, err := io.ReadAll(f)
 	if err != nil {
