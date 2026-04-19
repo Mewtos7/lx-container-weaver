@@ -49,14 +49,6 @@ type Config struct {
 	// cloud provider.
 	// Environment variable: HETZNER_API_TOKEN (optional)
 	HetznerAPIToken string
-
-	// PulumiStateDir is the base directory used for per-cluster Pulumi stack
-	// state storage. When set, each cluster's Pulumi stack stores its state in
-	// a dedicated subdirectory (PulumiStateDir/<stackName>/), providing
-	// deterministic and isolated state management. When empty, each Pulumi
-	// operation uses a transient workspace that is cleaned up automatically.
-	// Environment variable: PULUMI_STATE_DIR (optional)
-	PulumiStateDir string
 }
 
 // Load reads configuration from environment variables, applies defaults for
@@ -70,7 +62,6 @@ func Load() (*Config, error) {
 		ShutdownTimeout:   mustParseDuration(envOr("SHUTDOWN_TIMEOUT", "30s")),
 		APIKeys:           splitNonEmpty(os.Getenv("API_KEYS"), ","),
 		HetznerAPIToken:   os.Getenv("HETZNER_API_TOKEN"),
-		PulumiStateDir:    os.Getenv("PULUMI_STATE_DIR"),
 	}
 
 	if err := cfg.validate(); err != nil {

@@ -144,7 +144,7 @@ The manager ships with a first-class **Hetzner Cloud provider adapter** that imp
 
 | Operation | Transport | Description |
 |-----------|-----------|-------------|
-| `ProvisionServer` | Pulumi Automation API (`pulumi-hcloud`) | Declares the desired server state; Pulumi reconciles idempotently |
+| `ProvisionServer` | Hetzner Cloud REST API | Checks for existing server by name; creates if not found |
 | `DeprovisionServer` | Hetzner Cloud REST API | Deletes the server by its numeric ID |
 | `GetServer` | Hetzner Cloud REST API | Returns current server state mapped to a provider-agnostic struct |
 | `ListServers` | Hetzner Cloud REST API | Returns all servers visible to the configured token |
@@ -158,15 +158,10 @@ ProvisionServer(ctx, spec)
  validateSpec ──► ErrInvalidSpec (missing fields)
       │
       ▼
- Runtime.Up (Pulumi Automation API)
-      │ creates transient workspace
-      │ runs serverProgram (pulumi-hcloud)
-      │       │
-      │       ▼
-      │  hcloud.NewServer ──► Hetzner Cloud API
-      │       │  (idempotent: no duplicate if server exists)
-      │       ▼
-      │  export "serverID" (Hetzner numeric ID as string)
+ client.Server.GetByName ──► server exists ──► return existing ID
+      │ (nil: not found)
+      ▼
+ client.Server.Create ──► Hetzner Cloud API
       │
       ▼
  return serverID ──► caller (orchestrator / bootstrap flow)
@@ -189,30 +184,14 @@ To verify the provisioning workflow locally with a real Hetzner Cloud account:
 
 1. Set `HETZNER_API_TOKEN` in `.env` to a valid Hetzner Cloud API token.
 2. Run `make run-manager`.
-3. The manager logs confirm that the Hetzner Cloud provider has been initialised and that the Pulumi runtime is ready.
+3. The manager logs confirm that the Hetzner Cloud provider has been initialised.
 
 > **Note:** `ProvisionServer` creates real cloud resources when `HETZNER_API_TOKEN` is set. Use a
 > dedicated Hetzner project or test token to avoid unintended charges.
 
-## Pulumi Automation Runtime
+## Provisioning Model
 
-The manager uses the **Pulumi Automation API** (ADR-005) to provision cloud servers in-process — no separate `pulumi` CLI invocation or shell scripts are involved.
-
-### Per-Cluster State Isolation
-
-The runtime implements a **per-cluster state model**: each cluster's Pulumi stack stores its state in a dedicated subdirectory under the configured base directory (`PULUMI_STATE_DIR/<stackName>/`). This provides:
-
-- **Deterministic mapping**: the same cluster ID always resolves to the same state path (`PULUMI_STATE_DIR/hetzner-<clusterID>/`).
-- **Explicit isolation**: infrastructure operations for one cluster cannot read or mutate the state of another cluster.
-- **Persistent state**: state survives between `Up` and `Destroy` calls, enabling Pulumi to track and reconcile existing resources correctly.
-
-Set `PULUMI_STATE_DIR` to a writable directory to enable per-cluster persistent state:
-
-```sh
-export PULUMI_STATE_DIR=/var/lib/lx-container-weaver/pulumi-state
-```
-
-When `PULUMI_STATE_DIR` is not set, the runtime falls back to transient workspaces (a temporary directory per operation, cleaned up automatically). This is suitable for local testing but does not persist state across runs.
+All server lifecycle operations use the **Hetzner Cloud REST API** directly — no external state files are involved. `ProvisionServer` is idempotent: calling it again for an existing server name returns the existing server's ID without creating a duplicate. This means accidental loss of any local files has no impact on the management plane.
 
 ## Database Migrations
 

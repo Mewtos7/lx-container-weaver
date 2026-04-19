@@ -26,19 +26,6 @@ func TestNew_ValidToken(t *testing.T) {
 	}
 }
 
-// TestProvisionServer_NoRuntime verifies that ProvisionServer returns an error
-// when no Pulumi runtime has been wired via WithRuntime.
-func TestProvisionServer_NoRuntime(t *testing.T) {
-	p, _ := hetzner.New("tok")
-	_, err := p.ProvisionServer(context.Background(), provider.ServerSpec{
-		Name: "node-1", ServerType: "cx21", Region: "nbg1", Image: "ubuntu-22.04",
-		ClusterID: "cluster-1",
-	})
-	if err == nil {
-		t.Fatal("ProvisionServer: want error when no runtime is configured, got nil")
-	}
-}
-
 // TestProvisionServer_InvalidSpec verifies that ProvisionServer returns
 // ErrInvalidSpec when required fields are missing from the spec.
 func TestProvisionServer_InvalidSpec(t *testing.T) {

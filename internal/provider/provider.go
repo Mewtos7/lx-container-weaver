@@ -43,8 +43,9 @@ type ServerInfo struct {
 
 // HyperscalerProvider is the interface that every hyperscaler integration must
 // implement. Implementations manage the lifecycle of cloud servers using the
-// Pulumi Automation API (ADR-005) so that state tracking and idempotency are
-// handled by Pulumi.
+// hyperscaler's own REST API so that operations are stateless and idempotent:
+// re-calling ProvisionServer for an existing server returns the existing ID
+// without creating a duplicate.
 //
 // # Error semantics
 //
