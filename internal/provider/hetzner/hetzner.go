@@ -217,10 +217,10 @@ func serverProgram(spec provider.ServerSpec) pulumiruntime.ProgramFunc {
 			return fmt.Errorf("hcloud: declare server resource %q: %w", spec.Name, err)
 		}
 		// Export the Hetzner Cloud server ID as a string so that callers can
-		// use it with DeprovisionServer, GetServer, and ListServers.
-		ctx.Export("serverID", server.ID().ApplyT(func(id gopulumi.ID) string {
-			return string(id)
-		}).(gopulumi.StringOutput))
+		// use it with DeprovisionServer, GetServer, and ListServers. IDOutput
+		// carries the Hetzner numeric server ID; ToStringOutput converts it
+		// without a type assertion.
+		ctx.Export("serverID", server.ID().ToStringOutput())
 		ctx.Export("publicIPv4", server.Ipv4Address)
 		return nil
 	}
