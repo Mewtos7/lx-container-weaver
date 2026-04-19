@@ -10,6 +10,7 @@ import (
 	"github.com/Mewtos7/lx-container-weaver/internal/orchestrator"
 	"github.com/Mewtos7/lx-container-weaver/internal/persistence/memory"
 	"github.com/Mewtos7/lx-container-weaver/internal/persistence/model"
+	"github.com/Mewtos7/lx-container-weaver/internal/scheduler"
 )
 
 // discard is a no-op logger used in tests to suppress output.
@@ -256,4 +257,183 @@ func TestReconcile_NilSyncersAreSkipped(t *testing.T) {
 
 	// Must not panic.
 	orch.ReconcileOnce(context.Background())
+}
+
+// ─── reconcile: scheduler integration ────────────────────────────────────────
+
+const (
+	schedGiB = 1024 * 1024 * 1024
+)
+
+// seedNode creates a node record in the node store and returns it.
+func seedNodeInStore(t *testing.T, store *memory.NodeStore, n *model.Node) *model.Node {
+	t.Helper()
+	created, err := store.CreateNode(context.Background(), n)
+	if err != nil {
+		t.Fatalf("seedNodeInStore: %v", err)
+	}
+	return created
+}
+
+// seedInstance creates an instance record in the instance store and returns it.
+func seedInstance(t *testing.T, store *memory.InstanceStore, i *model.Instance) *model.Instance {
+	t.Helper()
+	created, err := store.CreateInstance(context.Background(), i)
+	if err != nil {
+		t.Fatalf("seedInstance: %v", err)
+	}
+	return created
+}
+
+// TestReconcile_SchedulerPlacesUnplacedInstance verifies that the reconcile
+// pass calls the scheduler for each instance without a NodeID and updates
+// the instance record with the selected node.
+func TestReconcile_SchedulerPlacesUnplacedInstance(t *testing.T) {
+	clusterStore := memory.NewClusterStore()
+	cluster := seedCluster(t, clusterStore, &model.Cluster{Name: "cluster-1"})
+
+	nodeStore := memory.NewNodeStore()
+	instanceStore := memory.NewInstanceStore()
+
+	// Seed one online node with headroom.
+	node := seedNodeInStore(t, nodeStore, &model.Node{
+		ClusterID:   cluster.ID,
+		Name:        "node-1",
+		Status:      model.NodeStatusOnline,
+		CPUCores:    4,
+		MemoryBytes: 8 * schedGiB,
+		DiskBytes:   100 * schedGiB,
+	})
+
+	// Seed one unplaced instance (NodeID == "").
+	inst := seedInstance(t, instanceStore, &model.Instance{
+		ClusterID:   cluster.ID,
+		Name:        "inst-1",
+		CPULimit:    1,
+		MemoryLimit: 512 * 1024 * 1024,
+		DiskLimit:   10 * schedGiB,
+	})
+	if inst.NodeID != "" {
+		t.Fatalf("pre-condition: instance should have no NodeID, got %q", inst.NodeID)
+	}
+
+	orch := newTestOrch(
+		orchestrator.WithClusterRepository(clusterStore),
+		orchestrator.WithNodeRepository(nodeStore),
+		orchestrator.WithInstanceRepository(instanceStore),
+		orchestrator.WithScheduler(scheduler.New()),
+	)
+
+	orch.ReconcileOnce(context.Background())
+
+	// The instance should now be placed on node-1.
+	updated, err := instanceStore.GetInstance(context.Background(), inst.ID)
+	if err != nil {
+		t.Fatalf("GetInstance after reconcile: %v", err)
+	}
+	if updated.NodeID != node.ID {
+		t.Errorf("instance NodeID: want %q, got %q", node.ID, updated.NodeID)
+	}
+}
+
+// TestReconcile_SchedulerNoCapacityIsLogged verifies that when no node has
+// sufficient headroom the reconcile pass completes without error and the
+// instance remains unplaced (ScaleOutRequired was signalled internally).
+func TestReconcile_SchedulerNoCapacityIsLogged(t *testing.T) {
+	clusterStore := memory.NewClusterStore()
+	cluster := seedCluster(t, clusterStore, &model.Cluster{Name: "cluster-1"})
+
+	nodeStore := memory.NewNodeStore()
+	instanceStore := memory.NewInstanceStore()
+
+	// Seed a fully packed node.
+	node := seedNodeInStore(t, nodeStore, &model.Node{
+		ClusterID:   cluster.ID,
+		Name:        "node-1",
+		Status:      model.NodeStatusOnline,
+		CPUCores:    2,
+		MemoryBytes: 4 * schedGiB,
+		DiskBytes:   50 * schedGiB,
+	})
+
+	// Seed an instance that fills the node completely (using the real node ID),
+	// and an unplaced instance that cannot fit.
+	seedInstance(t, instanceStore, &model.Instance{
+		ClusterID:   cluster.ID,
+		Name:        "existing",
+		NodeID:      node.ID,
+		CPULimit:    2,
+		MemoryLimit: 4 * schedGiB,
+		DiskLimit:   50 * schedGiB,
+	})
+	unplaced := seedInstance(t, instanceStore, &model.Instance{
+		ClusterID:   cluster.ID,
+		Name:        "unplaced",
+		CPULimit:    1,
+		MemoryLimit: 1 * schedGiB,
+		DiskLimit:   10 * schedGiB,
+	})
+
+	orch := newTestOrch(
+		orchestrator.WithClusterRepository(clusterStore),
+		orchestrator.WithNodeRepository(nodeStore),
+		orchestrator.WithInstanceRepository(instanceStore),
+		orchestrator.WithScheduler(scheduler.New()),
+	)
+
+	// Must not panic — ErrNoCapacity is logged, not propagated.
+	orch.ReconcileOnce(context.Background())
+
+	// The unplaced instance must remain unplaced.
+	got, err := instanceStore.GetInstance(context.Background(), unplaced.ID)
+	if err != nil {
+		t.Fatalf("GetInstance: %v", err)
+	}
+	if got.NodeID != "" {
+		t.Errorf("unplaced instance should remain unplaced, got NodeID %q", got.NodeID)
+	}
+}
+
+// TestReconcile_SchedulerSkippedWhenNotConfigured verifies that the scheduling
+// step is a no-op when no scheduler is wired into the Orchestrator, leaving
+// existing instance state unchanged.
+func TestReconcile_SchedulerSkippedWhenNotConfigured(t *testing.T) {
+	clusterStore := memory.NewClusterStore()
+	cluster := seedCluster(t, clusterStore, &model.Cluster{Name: "cluster-1"})
+
+	nodeStore := memory.NewNodeStore()
+	instanceStore := memory.NewInstanceStore()
+
+	seedNodeInStore(t, nodeStore, &model.Node{
+		ClusterID:   cluster.ID,
+		Name:        "node-1",
+		Status:      model.NodeStatusOnline,
+		CPUCores:    4,
+		MemoryBytes: 8 * schedGiB,
+		DiskBytes:   100 * schedGiB,
+	})
+	unplaced := seedInstance(t, instanceStore, &model.Instance{
+		ClusterID:   cluster.ID,
+		Name:        "inst-1",
+		CPULimit:    1,
+		MemoryLimit: 512 * 1024 * 1024,
+		DiskLimit:   10 * schedGiB,
+	})
+
+	// No WithScheduler option → scheduling step must be skipped.
+	orch := newTestOrch(
+		orchestrator.WithClusterRepository(clusterStore),
+		orchestrator.WithNodeRepository(nodeStore),
+		orchestrator.WithInstanceRepository(instanceStore),
+	)
+
+	orch.ReconcileOnce(context.Background())
+
+	got, err := instanceStore.GetInstance(context.Background(), unplaced.ID)
+	if err != nil {
+		t.Fatalf("GetInstance: %v", err)
+	}
+	if got.NodeID != "" {
+		t.Errorf("instance should not be placed when no scheduler configured, got NodeID %q", got.NodeID)
+	}
 }
