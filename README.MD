@@ -125,6 +125,7 @@ All variables are documented in `.env.example`. Do not commit `.env`.
 | `LOG_LEVEL` | `info` | Minimum log level: `debug`, `info`, `warn`, `error` |
 | `RECONCILE_INTERVAL` | `60s` | How often the orchestration loop runs |
 | `SHUTDOWN_TIMEOUT` | `30s` | Maximum wait for in-flight requests on shutdown |
+| `HETZNER_API_TOKEN` | _(empty — optional)_ | Hetzner Cloud API token; enables Hetzner provider |
 
 ## Reset Workflow
 
@@ -134,6 +135,22 @@ make dev-up
 ```
 
 `dev-reset` removes local PostgreSQL state and `dev-up` recreates it.
+
+## Pulumi Automation Runtime
+
+The manager uses the **Pulumi Automation API** (ADR-005) to provision cloud servers in-process — no separate `pulumi` CLI invocation or shell scripts are involved.
+
+The runtime operates without a persistent state backend. Each provisioning operation uses a self-managed transient workspace that is cleaned up automatically. Idempotency is achieved through Pulumi's declarative model: the program describes the desired infrastructure state and the provider's API reconciles it without manual drift steps.
+
+### Triggering provisioning locally
+
+To verify the provisioning workflow locally with a real Hetzner Cloud account:
+
+1. Set `HETZNER_API_TOKEN` in `.env` to a valid Hetzner Cloud API token.
+2. Run `make run-manager`.
+3. The manager logs confirm that the Hetzner Cloud provider has been initialised and that the Pulumi runtime is ready.
+
+> **Note:** The full `pulumi-hcloud` provider integration (creating real servers) is implemented in the Hetzner Provider Adapter story. The current stub exports a deterministic server ID without creating cloud resources.
 
 ## Database Migrations
 

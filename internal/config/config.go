@@ -42,6 +42,13 @@ type Config struct {
 	// comma-separated list of hashes.
 	// Environment variable: API_KEYS (required)
 	APIKeys []string
+
+	// HetznerAPIToken is the Hetzner Cloud API token used by the Hetzner
+	// provider to authenticate Pulumi operations. Optional: when empty the
+	// Hetzner provider is not initialised and the manager runs without a
+	// cloud provider.
+	// Environment variable: HETZNER_API_TOKEN (optional)
+	HetznerAPIToken string
 }
 
 // Load reads configuration from environment variables, applies defaults for
@@ -54,6 +61,7 @@ func Load() (*Config, error) {
 		ReconcileInterval: mustParseDuration(envOr("RECONCILE_INTERVAL", "60s")),
 		ShutdownTimeout:   mustParseDuration(envOr("SHUTDOWN_TIMEOUT", "30s")),
 		APIKeys:           splitNonEmpty(os.Getenv("API_KEYS"), ","),
+		HetznerAPIToken:   os.Getenv("HETZNER_API_TOKEN"),
 	}
 
 	if err := cfg.validate(); err != nil {
