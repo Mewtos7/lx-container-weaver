@@ -88,7 +88,7 @@ type BootstrapConfig struct {
 	// Environment variable: BOOTSTRAP_HETZNER_IMAGE (required when bootstrap enabled)
 	HetznerImage string
 
-	// TrustToken is the shared secret that authorises LXD cluster member
+	// TrustToken is the shared secret that authorizes LXD cluster member
 	// joins. It must be the same value on all nodes.
 	// Environment variable: BOOTSTRAP_TRUST_TOKEN (required when bootstrap enabled)
 	TrustToken string
