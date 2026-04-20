@@ -57,6 +57,54 @@ type Config struct {
 	// exists yet and an automated first-cluster provisioning is desired.
 	// Environment variable: INITIAL_BOOTSTRAP_ENABLED (default: false)
 	InitialBootstrapEnabled bool
+
+	// Bootstrap holds the operator-supplied settings that drive the very
+	// first LXD cluster provisioning. These fields are only loaded and
+	// validated when InitialBootstrapEnabled is true. All other bootstrap
+	// details (cluster name, trust token, storage config, node names and
+	// addresses) are either auto-generated or use hardcoded defaults.
+	Bootstrap BootstrapConfig
+}
+
+// ServerTier is the abstracted server size used for bootstrap node provisioning.
+// It is translated to hyperscaler-specific instance types at provisioning time.
+type ServerTier string
+
+const (
+	// ServerTierLow is a small server suitable for light workloads.
+	ServerTierLow ServerTier = "low"
+	// ServerTierMid is a medium-range server for typical production workloads.
+	ServerTierMid ServerTier = "mid"
+	// ServerTierHigh is a large server for resource-intensive workloads.
+	ServerTierHigh ServerTier = "high"
+)
+
+// BootstrapConfig holds the minimal operator-supplied settings required to
+// provision and bootstrap the first LXD cluster. Hyperscaler-specific
+// details (server type, OS image, storage driver/pool, node names and
+// addresses, trust token) are resolved from these three inputs or fall back
+// to hardcoded defaults, so operators do not need to know provider internals.
+//
+// All three fields are required when InitialBootstrapEnabled is true; they
+// have no effect when bootstrap is disabled.
+type BootstrapConfig struct {
+	// Hyperscaler identifies the cloud provider used to provision bootstrap
+	// nodes (e.g. "hetzner"). The value is matched case-insensitively and
+	// translated to the corresponding provider implementation.
+	// Environment variable: BOOTSTRAP_HYPERSCALER (required when bootstrap enabled)
+	Hyperscaler string
+
+	// Region is a provider-agnostic datacenter region identifier
+	// (e.g. "eu-central", "us-east"). It is mapped to the hyperscaler's
+	// native region code at provisioning time.
+	// Environment variable: BOOTSTRAP_REGION (required when bootstrap enabled)
+	Region string
+
+	// ServerTier is the abstracted node size: "low", "mid", or "high".
+	// The manager translates this to the hyperscaler's native instance type,
+	// so operators do not need to know provider-specific SKU names.
+	// Environment variable: BOOTSTRAP_SERVER_TIER (required when bootstrap enabled)
+	ServerTier ServerTier
 }
 
 // Load reads configuration from environment variables, applies defaults for
@@ -71,6 +119,11 @@ func Load() (*Config, error) {
 		APIKeys:                 splitNonEmpty(os.Getenv("API_KEYS"), ","),
 		HetznerAPIToken:         os.Getenv("HETZNER_API_TOKEN"),
 		InitialBootstrapEnabled: strings.EqualFold(os.Getenv("INITIAL_BOOTSTRAP_ENABLED"), "true"),
+		Bootstrap: BootstrapConfig{
+			Hyperscaler: os.Getenv("BOOTSTRAP_HYPERSCALER"),
+			Region:      os.Getenv("BOOTSTRAP_REGION"),
+			ServerTier:  ServerTier(os.Getenv("BOOTSTRAP_SERVER_TIER")),
+		},
 	}
 
 	if err := cfg.validate(); err != nil {
@@ -106,6 +159,42 @@ func (c *Config) validate() error {
 
 	if len(c.APIKeys) == 0 {
 		errs = append(errs, errors.New("API_KEYS is required: provide at least one bcrypt-hashed API key"))
+	}
+
+	if err := c.validateBootstrap(); err != nil {
+		errs = append(errs, err)
+	}
+
+	return errors.Join(errs...)
+}
+
+// validateBootstrap checks that all required bootstrap fields are set when
+// InitialBootstrapEnabled is true. When bootstrap is disabled the fields are
+// not inspected, so operators can leave them unset in non-bootstrap
+// environments.
+func (c *Config) validateBootstrap() error {
+	if !c.InitialBootstrapEnabled {
+		return nil
+	}
+
+	b := &c.Bootstrap
+	var errs []error
+
+	if b.Hyperscaler == "" {
+		errs = append(errs, errors.New("BOOTSTRAP_HYPERSCALER is required when INITIAL_BOOTSTRAP_ENABLED is true"))
+	}
+
+	if b.Region == "" {
+		errs = append(errs, errors.New("BOOTSTRAP_REGION is required when INITIAL_BOOTSTRAP_ENABLED is true"))
+	}
+
+	switch b.ServerTier {
+	case ServerTierLow, ServerTierMid, ServerTierHigh:
+		// valid
+	case "":
+		errs = append(errs, errors.New("BOOTSTRAP_SERVER_TIER is required when INITIAL_BOOTSTRAP_ENABLED is true"))
+	default:
+		errs = append(errs, fmt.Errorf("BOOTSTRAP_SERVER_TIER must be one of low|mid|high, got %q", b.ServerTier))
 	}
 
 	return errors.Join(errs...)

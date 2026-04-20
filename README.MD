@@ -127,6 +127,9 @@ All variables are documented in `.env.example`. Do not commit `.env`.
 | `SHUTDOWN_TIMEOUT` | `30s` | Maximum wait for in-flight requests on shutdown |
 | `HETZNER_API_TOKEN` | _(empty — optional)_ | Hetzner Cloud API token; enables Hetzner provider |
 | `INITIAL_BOOTSTRAP_ENABLED` | `false` | When `true`, the manager attempts to bootstrap the first LXD cluster at startup. Skipped automatically when any cluster already exists. |
+| `BOOTSTRAP_HYPERSCALER` | _(empty — required when bootstrap enabled)_ | Cloud provider for bootstrap provisioning (e.g. `hetzner`) |
+| `BOOTSTRAP_REGION` | _(empty — required when bootstrap enabled)_ | Generalized datacenter region (e.g. `eu-central`); translated to provider-native code |
+| `BOOTSTRAP_SERVER_TIER` | _(empty — required when bootstrap enabled)_ | Abstracted node size: `low`, `mid`, or `high`; translated to provider-native instance type |
 
 ## Reset Workflow
 
